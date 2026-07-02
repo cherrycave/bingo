@@ -19,12 +19,12 @@ repositories {
 }
 
 dependencies {
-    paperweight.paperDevBundle("26.1.2.build.+")
+    paperweight.paperDevBundle("26.2.build.+")
 
     compileOnly("dev.boecker.cherrycave:slpf:1.0.0")
 
-    implementation("xyz.xenondevs.invui:invui:2.1.1")
-    implementation("xyz.xenondevs.invui:invui-kotlin:2.1.1")
+    implementation("xyz.xenondevs.invui:invui:2.2.0")
+    implementation("xyz.xenondevs.invui:invui-kotlin:2.2.0")
 
     implementation(platform("io.ktor:ktor-bom:3.5.1"))
     implementation("io.ktor:ktor-client-core")
@@ -34,8 +34,8 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
 
-    implementation("net.megavex:scoreboard-library-api:2.8.0")
-    runtimeOnly("net.megavex:scoreboard-library-implementation:2.8.0")
+    implementation("net.megavex:scoreboard-library-api:2.8.1")
+    runtimeOnly("net.megavex:scoreboard-library-implementation:2.8.1")
 }
 
 kotlin {
