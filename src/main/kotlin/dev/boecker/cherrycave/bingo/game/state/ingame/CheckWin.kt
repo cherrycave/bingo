@@ -22,7 +22,7 @@ fun checkIfBingoItem(material: Material, player: Player, gameManager: BingoGameM
         gameManager.ingameState.collectedItems[team]!!.add(material)
         gameManager.plugin.server.broadcast(
             MiniMessage.miniMessage()
-                .deserialize("<${team.teamColor}>${team.teamName} <white>collected</white> <blue><lang:${material.translationKey()}><white>! <gray>(${gameManager.ingameState.collectedItems[team]!!.size}/${gameManager.bingoBoard!!.size})")
+                .deserialize("<${team.teamColor}>${player.name} <gray>(<${team.teamColor}>${team.teamName}<gray>) <white>collected</white> <blue><lang:${material.translationKey()}><white>! <gray>(${gameManager.ingameState.collectedItems[team]!!.size}/${gameManager.bingoBoard!!.size})")
         )
         val teamUUIDs = gameManager.teams[team]!!
         gameManager.plugin.server.onlinePlayers.forEach { player ->
