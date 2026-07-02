@@ -2,6 +2,7 @@ package dev.boecker.cherrycave.bingo.game.state
 
 import com.destroystokyo.paper.MaterialTags
 import dev.boecker.cherrycave.bingo.game.BingoGameManager
+import dev.boecker.cherrycave.bingo.game.team.BingoTeams
 import io.papermc.paper.math.Position
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
@@ -76,10 +77,6 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
             gameManager.plugin.server.sendActionBar(Component.text("Generating worlds...", NamedTextColor.GREEN))
         }, 0L, 20)
 
-        gameManager.plugin.server.onlinePlayers.forEach { player ->
-            player.inventory.clear()
-        }
-
         val seed = Random.nextLong()
 
         val newBoard = mutableListOf<Material>()
@@ -95,6 +92,20 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
         gameManager.bingoBoard = newBoard.toList()
 
         val filledTeams = gameManager.teams.filter { it.value.isNotEmpty() }
+
+        gameManager.plugin.server.onlinePlayers.forEach { player ->
+            player.inventory.clear()
+
+            player.scoreboard = gameManager.plugin.server.scoreboardManager.newScoreboard
+
+            filledTeams.forEach { (team, teamUUIDs) ->
+                val scoreboardTeam = player.scoreboard.registerNewTeam(team.teamName)
+                scoreboardTeam.prefix(gameManager.mm.deserialize("<${team.teamColor}>${team.teamName} <gray>| <${team.teamColor}>"))
+                gameManager.plugin.server.onlinePlayers.filter { it.uniqueId in teamUUIDs }.forEach {
+                    scoreboardTeam.addPlayer(it)
+                }
+            }
+        }
 
         for (team in filledTeams) {
             val overworldCreator = WorldCreator(
