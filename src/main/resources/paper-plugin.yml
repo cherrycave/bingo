@@ -5,3 +5,9 @@ description: Bingo Game :)
 api-version: '26.1.2'
 #bootstrapper: io.papermc.testplugin.TestPluginBootstrap
 loader: dev.boecker.cherrycave.bingo.BingoPluginLoader
+dependencies:
+  server:
+    SimpleLuckPermsFormatter:
+      load: BEFORE
+      required: false
+      join-classpath: true

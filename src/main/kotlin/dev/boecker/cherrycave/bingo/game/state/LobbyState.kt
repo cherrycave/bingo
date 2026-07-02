@@ -45,6 +45,8 @@ class LobbyState(manager: BingoGameManager) : GameState(manager), Listener {
     lateinit var teamChangeDispatcher: BiConsumer<Player, BingoTeams>
 
     override fun startState() {
+        gameManager.plugin.slpf?.disableFormatting = false
+
         lobbyWorld?.setGameRule(GameRules.PVP, false)
         gameManager.winnerTeam = null
         gameManager.bingoBoard = null
@@ -115,6 +117,7 @@ class LobbyState(manager: BingoGameManager) : GameState(manager), Listener {
 
     override fun endState() {
         super.endState()
+        gameManager.plugin.slpf?.disableFormatting = true
 
         gameManager.plugin.server.scheduler.cancelTask(timerSchedule!!)
         timerSchedule = null

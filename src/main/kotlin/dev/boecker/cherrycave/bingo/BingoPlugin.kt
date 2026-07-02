@@ -2,6 +2,7 @@ package dev.boecker.cherrycave.bingo
 
 import dev.boecker.cherrycave.bingo.command.bingoBoardCommand
 import dev.boecker.cherrycave.bingo.game.BingoGameManager
+import dev.boecker.cherrycave.slpf.SimpleLuckPermsFormatter
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
 import org.bukkit.plugin.java.JavaPlugin
 import kotlin.io.path.ExperimentalPathApi
@@ -14,8 +15,12 @@ class BingoPlugin : JavaPlugin() {
 
     lateinit var bingoManager: BingoGameManager
 
+    var slpf: SimpleLuckPermsFormatter? = null
+
     @OptIn(ExperimentalPathApi::class)
     override fun onEnable() {
+        slpf = server.pluginManager.getPlugin("SimpleLuckPermsFormatter") as SimpleLuckPermsFormatter?
+
         val bingoWorldFiles = server.levelDirectory.resolve("dimensions").resolve("bingo")
         if (bingoWorldFiles.exists()) {
             bingoWorldFiles.listDirectoryEntries().forEach { file ->
