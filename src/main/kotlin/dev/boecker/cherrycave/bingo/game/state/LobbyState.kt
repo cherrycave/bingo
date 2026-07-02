@@ -7,7 +7,9 @@ import io.papermc.paper.event.player.AsyncPlayerSpawnLocationEvent
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.minimessage.MiniMessage
+import net.minecraft.core.component.DataComponentType
 import org.bukkit.*
+import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -38,7 +40,6 @@ class LobbyState(manager: BingoGameManager) : GameState(manager), Listener {
     val lobbySpawn = Location(lobbyWorld, 0.0, 1.0, 0.0, 180f, 0f)
 
     override fun startState() {
-
         lobbyWorld?.setGameRule(GameRules.PVP, false)
         gameManager.winnerTeam = null
         gameManager.bingoBoard = null
@@ -111,6 +112,31 @@ class LobbyState(manager: BingoGameManager) : GameState(manager), Listener {
         starting = gameManager.teams.values.filter { it.isNotEmpty() }.size >= 2
     }
 
+    fun deletePlayerData(player: Player) {
+        player.totalExperience = 0
+        player.level = 0
+        Bukkit.advancementIterator().forEach { advancement ->
+            val progress = player.getAdvancementProgress(advancement)
+            progress.awardedCriteria.forEach { criteria ->
+                progress.revokeCriteria(criteria)
+            }
+        }
+        Statistic.entries.forEach { statistic ->
+            try {
+                if (statistic.type == Statistic.Type.UNTYPED) {
+                    player.setStatistic(statistic, 0)
+                } else {
+                    Material.entries.forEach { material ->
+                        player.setStatistic(statistic, material, 0)
+                    }
+                    EntityType.entries.forEach { entityType ->
+                        player.setStatistic(statistic, entityType, 0)
+                    }
+                }
+            } catch (_: IllegalArgumentException) {}
+        }
+    }
+
     @EventHandler
     fun onPlayerSpawn(event: AsyncPlayerSpawnLocationEvent) {
         if (!isActive) return
@@ -123,6 +149,7 @@ class LobbyState(manager: BingoGameManager) : GameState(manager), Listener {
         if (!isActive) return
 
         event.player.inventory.clear()
+        deletePlayerData(event.player)
 
         event.player.gameMode = GameMode.ADVENTURE
 

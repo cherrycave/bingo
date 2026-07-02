@@ -5,4 +5,5 @@ import org.bukkit.Difficulty
 data class BingoConfiguration(
     val boardSize: Int = 5,
     val minecraftDifficulty: Difficulty = Difficulty.NORMAL,
+    val keepInventory: Boolean = true,
 )

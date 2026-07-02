@@ -2,22 +2,17 @@ package dev.boecker.cherrycave.bingo.game.state
 
 import com.destroystokyo.paper.MaterialTags
 import dev.boecker.cherrycave.bingo.game.BingoGameManager
+import io.papermc.paper.math.Position
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
-import org.bukkit.Difficulty
-import org.bukkit.GameRules
-import org.bukkit.Material
-import org.bukkit.NamespacedKey
-import org.bukkit.Tag
-import org.bukkit.World
-import org.bukkit.WorldCreator
+import org.bukkit.*
+import org.bukkit.craftbukkit.CraftWorld
 import org.bukkit.event.EventHandler
+import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerJoinEvent
-import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.event.player.PlayerSwapHandItemsEvent
-import org.bukkit.generator.BiomeProvider
 import org.bukkit.inventory.EquipmentSlot
 import kotlin.random.Random
 
@@ -66,8 +61,16 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
                 it != Material.FARMLAND
     }
 
+    var scheduler: Int? = null
+
+    var finishedSpawnPositions: Int = 0
+
     override fun startState() {
         super.startState()
+
+        scheduler = gameManager.plugin.server.scheduler.scheduleSyncRepeatingTask(gameManager.plugin, {
+            gameManager.plugin.server.sendActionBar(Component.text("Generating worlds...", NamedTextColor.GREEN))
+        }, 0L, 20)
 
         gameManager.plugin.server.onlinePlayers.forEach { player ->
             player.inventory.clear()
@@ -90,35 +93,71 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
         val filledTeams = gameManager.teams.filter { it.value.isNotEmpty() }
 
         for (team in filledTeams) {
-            val overworld = WorldCreator(NamespacedKey(
-                gameManager.plugin,
-                team.key.teamName
-            )).seed(seed).createWorld()!!
+            val overworldCreator = WorldCreator(
+                NamespacedKey(
+                    gameManager.plugin,
+                    team.key.teamName
+                )
+            ).seed(seed).forcedSpawnPosition(Position.block(0, 100, 0), 0f, 0f)
+            val overworld = overworldCreator.createWorld()!!
             val nether = WorldCreator(
                 NamespacedKey(
                     gameManager.plugin,
                     "${team.key.teamName}_nether"
                 )
-            ).environment(World.Environment.NETHER).seed(seed).createWorld()!!
+            ).environment(World.Environment.NETHER).seed(seed).forcedSpawnPosition(Position.block(0, 100, 0), 0f, 0f)
+                .createWorld()!!
+
+            // Set gamerules
             overworld.setGameRule(GameRules.PVP, false)
             nether.setGameRule(GameRules.PVP, false)
+            overworld.setGameRule(GameRules.KEEP_INVENTORY, gameManager.bingoConfiguration.keepInventory)
+            nether.setGameRule(GameRules.KEEP_INVENTORY, gameManager.bingoConfiguration.keepInventory)
             overworld.difficulty = gameManager.bingoConfiguration.minecraftDifficulty
             nether.difficulty = gameManager.bingoConfiguration.minecraftDifficulty
 
             gameManager.teamWorlds[team.key] = overworld to nether
 
-            team.value.forEach { teamUUIDs ->
-                gameManager.plugin.server.onlinePlayers.filter { it.uniqueId == teamUUIDs }.forEach {
-                    it.teleport(overworld.spawnLocation)
-                    it.respawnLocation = overworld.spawnLocation
+            gameManager.plugin.server.scheduler.runTaskAsynchronously(gameManager.plugin) { _ ->
+                val spawnPosition =
+                    (overworld as CraftWorld).handle.chunkSource.randomState().sampler().findSpawnPosition()
+                val spawnLocation = Location(
+                    overworld, spawnPosition.x.toDouble(),
+                    spawnPosition.y.toDouble(), spawnPosition.z.toDouble()
+                )
+                gameManager.plugin.server.scheduler.runTask(gameManager.plugin) { _ ->
+                    overworld.getChunkAtAsync(spawnLocation).thenAccept { chunk ->
+                        spawnLocation.y = chunk.world.getHighestBlockYAt(
+                            spawnLocation.x.toInt(),
+                            spawnLocation.z.toInt()
+                        ) + 1.0
+                        overworld.spawnLocation = spawnLocation
+                        team.value.forEach { teamUUID ->
+                            gameManager.plugin.server.onlinePlayers.filter { it.uniqueId == teamUUID }.forEach {
+                                it.teleportAsync(overworld.spawnLocation)
+                                it.respawnLocation = overworld.spawnLocation
+                            }
+                            finishedSpawnPositions++
+                        }
+                    }
                 }
             }
         }
 
-        gameManager.nextState()
+        gameManager.plugin.server.scheduler.runTaskTimer(gameManager.plugin, { task ->
+            if (finishedSpawnPositions >= filledTeams.size) {
+                gameManager.nextState()
+                task.cancel()
+            }
+        }, 0L, 1L)
     }
 
     override fun endState() {
+        if (scheduler != null) {
+            gameManager.plugin.server.scheduler.cancelTask(scheduler!!)
+            scheduler = null
+        }
+
         super.endState()
     }
 
@@ -128,11 +167,6 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
         if (gameManager.teams.values.any { it == event.player.uniqueId }) return
 
         event.player.kick(Component.text("A game is running", NamedTextColor.RED))
-    }
-
-    @EventHandler
-    fun onPlayerDisconnect(event: PlayerQuitEvent) {
-        if (!isActive) return
     }
 
     @EventHandler
@@ -153,6 +187,13 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
 
     @EventHandler
     fun onPlayerSwapHandItems(event: PlayerSwapHandItemsEvent) {
+        if (!isActive) return
+
+        event.isCancelled = true
+    }
+
+    @EventHandler
+    fun onPlayerDamage(event: EntityDamageEvent) {
         if (!isActive) return
 
         event.isCancelled = true

@@ -3,6 +3,7 @@ package dev.boecker.cherrycave.bingo.game.state.lobby
 import dev.boecker.cherrycave.bingo.game.BingoGameManager
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
+import org.bukkit.Difficulty
 import org.bukkit.Material
 import org.bukkit.event.inventory.ClickType
 import xyz.xenondevs.invui.gui.Gui
@@ -17,10 +18,14 @@ fun gameConfigurationGUI(gameManager: BingoGameManager) = Window.builder()
         Gui.builder().setStructure(
             "# # # # # # # # #",
             "# b # # # # # p #",
+            "# d k # # # # s #",
             "# # # # # # # # #",
         ).addIngredient('#', Item.simple(ItemBuilder(Material.BLACK_STAINED_GLASS_PANE).setName("")))
             .addIngredient('p', timerPauseItem(gameManager))
-            .addIngredient('b', boardSizeItem(gameManager)).build()
+            .addIngredient('s', skipTimerItem(gameManager))
+            .addIngredient('b', boardSizeItem(gameManager))
+            .addIngredient('d', minecraftDifficultyItem(gameManager))
+            .addIngredient('k', keepInvItem(gameManager)).build()
     )
 
 fun timerPauseItem(gameManager: BingoGameManager) = BoundItem.builder().setItemProvider { _ ->
@@ -37,11 +42,29 @@ fun timerPauseItem(gameManager: BingoGameManager) = BoundItem.builder().setItemP
     item.notifyWindows()
 }
 
+fun skipTimerItem(gameManager: BingoGameManager) = BoundItem.builder().setItemProvider { _ ->
+    var itemBuilder = ItemBuilder(Material.BELL)
+    itemBuilder = if (gameManager.lobbyState.timer >= 5) {
+        itemBuilder.setName(Component.text("Skip Start Timer", NamedTextColor.GREEN))
+    } else {
+        itemBuilder.setName(Component.text("Reset Start Timer", NamedTextColor.GOLD))
+    }
+
+    itemBuilder
+}.addClickHandler { item, _, _ ->
+    if (gameManager.lobbyState.timer >= 5) {
+        gameManager.lobbyState.timer = 5
+    } else {
+        gameManager.lobbyState.timer = 30
+    }
+    item.notifyWindows()
+}
+
 fun boardSizeItem(gameManager: BingoGameManager) = BoundItem.builder().setItemProvider { _ ->
     val currentBoardSize = gameManager.bingoConfiguration.boardSize
     val itemBuilder = ItemBuilder(Material.TARGET).setName(gameManager.mm.deserialize("<gray>Board Size: <blue>${currentBoardSize}")).setLore(listOf(
         gameManager.mm.deserialize("<gray>Left-Click to <green>increase"),
-        gameManager.mm.deserialize("<gray>Left-Click to <red>decrease")))
+        gameManager.mm.deserialize("<gray>Right-Click to <red>decrease")))
 
     itemBuilder
 }.addClickHandler { item, _, click ->
@@ -57,3 +80,34 @@ fun boardSizeItem(gameManager: BingoGameManager) = BoundItem.builder().setItemPr
     item.notifyWindows()
 }
 
+fun minecraftDifficultyItem(gameManager: BingoGameManager) = BoundItem.builder().setItemProvider { _ ->
+    val currentDifficulty = gameManager.bingoConfiguration.minecraftDifficulty
+    val itemBuilder = ItemBuilder(Material.BOW).setName(gameManager.mm.deserialize("<gray>Minecraft Difficulty: <blue>${currentDifficulty.name}")).setLore(listOf(
+        gameManager.mm.deserialize("<gray>Left-Click to <green>increase"),
+        gameManager.mm.deserialize("<gray>Right-Click to <red>decrease")))
+
+    itemBuilder
+}.addClickHandler { item, _, click ->
+    if (click.clickType == ClickType.LEFT) {
+        val config = gameManager.bingoConfiguration
+        if (config.minecraftDifficulty == Difficulty.HARD) return@addClickHandler
+        gameManager.bingoConfiguration = gameManager.bingoConfiguration.copy(minecraftDifficulty = Difficulty.getByValue(config.minecraftDifficulty.value + 1)!!)
+    } else if (click.clickType == ClickType.RIGHT) {
+        val config = gameManager.bingoConfiguration
+        if (config.minecraftDifficulty == Difficulty.EASY) return@addClickHandler
+        gameManager.bingoConfiguration = gameManager.bingoConfiguration.copy(minecraftDifficulty = Difficulty.getByValue(config.minecraftDifficulty.value - 1)!!)
+    }
+    item.notifyWindows()
+}
+
+fun keepInvItem(gameManager: BingoGameManager) = BoundItem.builder().setItemProvider { _ ->
+    val currentValue = gameManager.bingoConfiguration.keepInventory
+    val itemBuilder = ItemBuilder(Material.CHEST).setName(gameManager.mm.deserialize("<gray>KeepInventory: <blue>${currentValue}")).setLore(listOf(
+        gameManager.mm.deserialize("<gray>Click to change")))
+
+    itemBuilder
+}.addClickHandler { item, _, _ ->
+    val config = gameManager.bingoConfiguration
+    gameManager.bingoConfiguration = gameManager.bingoConfiguration.copy(keepInventory = !config.keepInventory)
+    item.notifyWindows()
+}

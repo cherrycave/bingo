@@ -74,6 +74,7 @@ class GameOverState(manager: BingoGameManager) : GameState(manager) {
 
         gameManager.plugin.server.onlinePlayers.forEach { player ->
             player.inventory.clear()
+            gameManager.lobbyState.deletePlayerData(player)
             player.teleport(gameManager.lobbyState.lobbySpawn)
             player.gameMode = GameMode.ADVENTURE
         }
