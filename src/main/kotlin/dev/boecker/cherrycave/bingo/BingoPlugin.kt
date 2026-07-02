@@ -7,6 +7,10 @@ import dev.boecker.cherrycave.bingo.command.bingoUpCommand
 import dev.boecker.cherrycave.bingo.game.BingoGameManager
 import dev.boecker.cherrycave.slpf.SimpleLuckPermsFormatter
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import net.megavex.scoreboardlibrary.api.ScoreboardLibrary
 import org.bukkit.plugin.java.JavaPlugin
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.deleteRecursively
@@ -20,9 +24,14 @@ class BingoPlugin : JavaPlugin() {
 
     var slpf: SimpleLuckPermsFormatter? = null
 
+    lateinit var scoreboardLibrary: ScoreboardLibrary
+
+    val coroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
     @OptIn(ExperimentalPathApi::class)
     override fun onEnable() {
         slpf = server.pluginManager.getPlugin("SimpleLuckPermsFormatter") as SimpleLuckPermsFormatter?
+        scoreboardLibrary = ScoreboardLibrary.loadScoreboardLibrary(this);
 
         val bingoWorldFiles = server.levelDirectory.resolve("dimensions").resolve("bingo")
         if (bingoWorldFiles.exists()) {

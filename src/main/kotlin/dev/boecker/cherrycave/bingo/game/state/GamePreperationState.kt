@@ -2,10 +2,15 @@ package dev.boecker.cherrycave.bingo.game.state
 
 import com.destroystokyo.paper.MaterialTags
 import dev.boecker.cherrycave.bingo.game.BingoGameManager
+import dev.boecker.cherrycave.bingo.game.state.prepare.getResourcePackForMaterials
+import dev.boecker.cherrycave.bingo.game.state.prepare.resourcePackGenUrl
 import dev.boecker.cherrycave.bingo.game.team.BingoTeams
 import io.papermc.paper.math.Position
+import kotlinx.coroutines.launch
+import net.kyori.adventure.bossbar.BossBar
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.TextColor
 import org.bukkit.*
 import org.bukkit.craftbukkit.CraftWorld
 import org.bukkit.event.EventHandler
@@ -62,6 +67,7 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
                 it != Material.STRUCTURE_VOID &&
                 it != Material.LIGHT &&
                 it != Material.JIGSAW &&
+                it != Material.FROGSPAWN &&
                 it != Material.PETRIFIED_OAK_SLAB &&
                 it != Material.FARMLAND
     }
@@ -90,6 +96,27 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
         }
 
         gameManager.bingoBoard = newBoard.toList()
+
+        gameManager.plugin.coroutineScope.launch {
+            val resourcePackResponse = getResourcePackForMaterials(gameManager.bingoBoard!!, gameManager.bingoConfiguration.boardSize)
+
+            val (hash, downloadPath) = resourcePackResponse
+
+            gameManager.plugin.server.onlinePlayers.forEach { player ->
+                player.setResourcePack("${resourcePackGenUrl}${downloadPath}", hash, true)
+
+                player.activeBossBars().forEach { bossBar ->
+                    player.hideBossBar(bossBar)
+                }
+
+                player.showBossBar(
+                    BossBar.bossBar(
+                        Component.text("\uE000", TextColor.fromHexString("#FE01FE")), 0f, BossBar.Color.RED,
+                        BossBar.Overlay.PROGRESS
+                    )
+                )
+            }
+        }
 
         val filledTeams = gameManager.teams.filter { it.value.isNotEmpty() }
 
