@@ -152,8 +152,9 @@ class IngameState(manager: BingoGameManager) : GameState(manager) {
     @EventHandler
     fun onPlayerJoin(event: PlayerJoinEvent) {
         if (!isActive) return
-        if (gameManager.teams.values.any { it == event.player.uniqueId }) return
+        if (gameManager.teams.values.any { it.contains(event.player.uniqueId) }) return
 
+        event.joinMessage(null)
         event.player.kick(Component.text("A game is running", NamedTextColor.RED))
     }
 
