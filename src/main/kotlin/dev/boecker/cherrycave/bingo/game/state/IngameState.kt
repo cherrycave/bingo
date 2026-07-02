@@ -38,7 +38,7 @@ class IngameState(manager: BingoGameManager) : GameState(manager) {
         super.startState()
 
         collectedItems = BingoTeams.entries.associateWith { team -> mutableListOf() }
-        backpacks = BingoTeams.entries.associateWith { team -> backPackInventory() }
+        backpacks = BingoTeams.entries.associateWith { team -> backPackInventory(gameManager) }
 
         val backPackItemstack = ItemStack(Material.BUNDLE)
         val backPackItemMeta = backPackItemstack.itemMeta
@@ -82,7 +82,7 @@ class IngameState(manager: BingoGameManager) : GameState(manager) {
     @EventHandler
     fun onInteractEvent(event: PlayerInteractEvent) {
         if (!isActive) return
-        if (event.hand != EquipmentSlot.HAND && event.action != Action.RIGHT_CLICK_AIR && event.action == Action.RIGHT_CLICK_BLOCK) {
+        if (event.hand != EquipmentSlot.HAND && (event.action != Action.RIGHT_CLICK_AIR || event.action != Action.RIGHT_CLICK_BLOCK)) {
             return
         }
 

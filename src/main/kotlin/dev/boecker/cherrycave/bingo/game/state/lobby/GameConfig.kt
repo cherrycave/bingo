@@ -1,6 +1,7 @@
 package dev.boecker.cherrycave.bingo.game.state.lobby
 
 import dev.boecker.cherrycave.bingo.game.BingoGameManager
+import io.papermc.paper.datacomponent.DataComponentTypes
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.Difficulty
@@ -17,7 +18,7 @@ fun gameConfigurationGUI(gameManager: BingoGameManager) = Window.builder()
     .setUpperGui(
         Gui.builder().setStructure(
             "# # # # # # # # #",
-            "# b t # # # # p #",
+            "# b t B # # # p #",
             "# d k # # # # s #",
             "# # # # # # # # #",
         ).addIngredient('#', Item.simple(ItemBuilder(Material.BLACK_STAINED_GLASS_PANE).setName("")))
@@ -25,6 +26,7 @@ fun gameConfigurationGUI(gameManager: BingoGameManager) = Window.builder()
             .addIngredient('s', skipTimerItem(gameManager))
             .addIngredient('b', boardSizeItem(gameManager))
             .addIngredient('t', allowTPCommandsItem(gameManager))
+            .addIngredient('B', backpackSizeItem(gameManager))
             .addIngredient('d', minecraftDifficultyItem(gameManager))
             .addIngredient('k', keepInvItem(gameManager)).build()
     )
@@ -93,6 +95,25 @@ fun allowTPCommandsItem(gameManager: BingoGameManager) = BoundItem.builder().set
     item.notifyWindows()
 }
 
+fun backpackSizeItem(gameManager: BingoGameManager) = BoundItem.builder().setItemProvider { _ ->
+    val currentBoardSize = gameManager.bingoConfiguration.backPackSize
+    val itemBuilder = ItemBuilder(Material.BUNDLE).setName(gameManager.mm.deserialize("<gray>Backpack Size: <blue>${currentBoardSize}")).setLore(listOf(
+        gameManager.mm.deserialize("<gray>Left-Click to <green>increase"),
+        gameManager.mm.deserialize("<gray>Right-Click to <red>decrease"))).hideTooltip(DataComponentTypes.BUNDLE_CONTENTS)
+
+    itemBuilder
+}.addClickHandler { item, _, click ->
+    if (click.clickType == ClickType.LEFT) {
+        val config = gameManager.bingoConfiguration
+        if (config.backPackSize >= 6) return@addClickHandler
+        gameManager.bingoConfiguration = gameManager.bingoConfiguration.copy(backPackSize = config.backPackSize + 1)
+    } else if (click.clickType == ClickType.RIGHT) {
+        val config = gameManager.bingoConfiguration
+        if (config.backPackSize <= 1) return@addClickHandler
+        gameManager.bingoConfiguration = gameManager.bingoConfiguration.copy(backPackSize = config.backPackSize - 1)
+    }
+    item.notifyWindows()
+}
 
 fun minecraftDifficultyItem(gameManager: BingoGameManager) = BoundItem.builder().setItemProvider { _ ->
     val currentDifficulty = gameManager.bingoConfiguration.minecraftDifficulty

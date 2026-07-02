@@ -1,24 +1,17 @@
 package dev.boecker.cherrycave.bingo.game.state.ingame
 
+import dev.boecker.cherrycave.bingo.game.BingoGameManager
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
-import org.bukkit.Material
 import xyz.xenondevs.invui.gui.Gui
 import xyz.xenondevs.invui.inventory.VirtualInventory
-import xyz.xenondevs.invui.item.Item
-import xyz.xenondevs.invui.item.ItemBuilder
 import xyz.xenondevs.invui.window.Window
 
-fun backPackInventory() = Window.builder()
+fun backPackInventory(gameManager: BingoGameManager) = Window.builder()
     .setTitle(Component.text("Backpack", NamedTextColor.GOLD))
     .setUpperGui(Gui.builder()
     .setStructure(
-        "# # # # # # # # #",
-        "# x x x x x x x #",
-        "# x x x x x x x #",
-        "# x x x x x x x #",
-        "# # # # # # # # #",
+        *(0 until gameManager.bingoConfiguration.backPackSize).map { "x x x x x x x x x" }.toTypedArray(),
     )
-    .addIngredient('#', Item.simple(ItemBuilder(Material.BLACK_STAINED_GLASS_PANE).setName("")))
-    .addIngredient('x', VirtualInventory(7*3))
+    .addIngredient('x', VirtualInventory(9*gameManager.bingoConfiguration.backPackSize))
     .build())

@@ -7,4 +7,5 @@ data class BingoConfiguration(
     val minecraftDifficulty: Difficulty = Difficulty.NORMAL,
     val keepInventory: Boolean = true,
     val allowTeleportCommands: Boolean = true,
+    val backPackSize: Int = 3,
 )
