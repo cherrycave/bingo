@@ -1,5 +1,6 @@
 package dev.boecker.cherrycave.bingo
 
+import dev.boecker.cherrycave.bingo.command.bingoBackpackCommand
 import dev.boecker.cherrycave.bingo.command.bingoBoardCommand
 import dev.boecker.cherrycave.bingo.command.bingoSpawnCommand
 import dev.boecker.cherrycave.bingo.command.bingoUpCommand
@@ -33,11 +34,13 @@ class BingoPlugin : JavaPlugin() {
         bingoManager = BingoGameManager(this)
 
         this.lifecycleManager.registerEventHandler(
-            LifecycleEvents.COMMANDS, { commands ->
-                commands.registrar().register(bingoBoardCommand(bingoManager).build())
-                commands.registrar().register(bingoSpawnCommand(bingoManager).build())
-                commands.registrar().register(bingoUpCommand(bingoManager).build())
-            })
+            LifecycleEvents.COMMANDS
+        ) { commands ->
+            commands.registrar().register(bingoBoardCommand(bingoManager).build())
+            commands.registrar().register(bingoSpawnCommand(bingoManager).build())
+            commands.registrar().register(bingoUpCommand(bingoManager).build())
+            commands.registrar().register(bingoBackpackCommand(bingoManager).build(), listOf("bp"))
+        }
     }
 
 }
