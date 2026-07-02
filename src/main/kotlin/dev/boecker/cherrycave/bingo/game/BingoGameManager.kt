@@ -25,8 +25,7 @@ class BingoGameManager(val plugin: BingoPlugin) {
 
     var bingoConfiguration = BingoConfiguration()
 
-    val teamWorlds: MutableMap<BingoTeams, Pair<World, World>?> =
-        BingoTeams.entries.toTypedArray().associateWith { null }.toMutableMap()
+    lateinit var teamWorlds: Map<BingoTeams, Pair<World, World>>
 
     val teams: Map<BingoTeams, MutableList<UUID>> =
         BingoTeams.entries.toTypedArray().associateWith { mutableListOf() }

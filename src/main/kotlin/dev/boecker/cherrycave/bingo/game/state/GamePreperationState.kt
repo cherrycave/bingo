@@ -2,8 +2,12 @@ package dev.boecker.cherrycave.bingo.game.state
 
 import com.destroystokyo.paper.MaterialTags
 import dev.boecker.cherrycave.bingo.game.BingoGameManager
+import dev.boecker.cherrycave.bingo.game.state.prepare.generateWorlds
 import dev.boecker.cherrycave.bingo.game.state.prepare.getResourcePackForMaterials
+import dev.boecker.cherrycave.bingo.game.state.prepare.initializeSidebar
+import dev.boecker.cherrycave.bingo.game.state.prepare.initializeTeams
 import dev.boecker.cherrycave.bingo.game.state.prepare.resourcePackGenUrl
+import dev.boecker.cherrycave.bingo.game.state.prepare.setResourcePack
 import dev.boecker.cherrycave.bingo.game.team.BingoTeams
 import dev.boecker.cherrycave.bingo.game.team.getBingoTeam
 import dev.boecker.cherrycave.bingo.scoreboard.TeamScoreboardComponent
@@ -27,6 +31,7 @@ import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerResourcePackStatusEvent
 import org.bukkit.event.player.PlayerSwapHandItemsEvent
 import org.bukkit.inventory.EquipmentSlot
+import java.util.UUID
 import kotlin.random.Random
 
 class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
@@ -89,6 +94,8 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
     var sideBarLayout: ComponentSidebarLayout? = null
     var teamSideBarComponents: MutableMap<BingoTeams, TeamScoreboardComponent> = mutableMapOf()
 
+    var filledTeams: Map<BingoTeams, MutableList<UUID>> = mapOf()
+
     override fun startState() {
         super.startState()
 
@@ -100,8 +107,6 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
         scheduler = gameManager.plugin.server.scheduler.scheduleSyncRepeatingTask(gameManager.plugin, {
             gameManager.plugin.server.sendActionBar(Component.text("Preparing game...", NamedTextColor.GREEN))
         }, 0L, 20)
-
-        val seed = Random.nextLong()
 
         val newBoard = mutableListOf<Material>()
 
@@ -115,125 +120,29 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
 
         gameManager.bingoBoard = newBoard.toList()
 
-        gameManager.plugin.coroutineScope.launch {
-            val resourcePackResponse =
-                getResourcePackForMaterials(gameManager.bingoBoard!!, gameManager.bingoConfiguration.boardSize)
+        setResourcePack()
 
-            val (hash, downloadPath) = resourcePackResponse
+        filledTeams = gameManager.teams.filter { it.value.isNotEmpty() }
 
-            gameManager.plugin.server.onlinePlayers.forEach { player ->
-                player.setResourcePack("${resourcePackGenUrl}${downloadPath}", hash, true)
+        initializeTeams()
 
-                player.activeBossBars().forEach { bossBar ->
-                    player.hideBossBar(bossBar)
-                }
+        generateWorlds { worlds ->
+            gameManager.teamWorlds = worlds
 
-                player.showBossBar(
-                    BossBar.bossBar(
-                        Component.text("\uE000", TextColor.fromHexString("#FE01FE")), 0f, BossBar.Color.RED,
-                        BossBar.Overlay.PROGRESS
-                    )
-                )
-            }
-        }
+            println("worlds: $worlds")
 
-        val filledTeams = gameManager.teams.filter { it.value.isNotEmpty() }
-
-        gameManager.plugin.server.onlinePlayers.forEach { player ->
-            player.inventory.clear()
-
-            player.scoreboard = gameManager.plugin.server.scoreboardManager.newScoreboard
-
-            filledTeams.forEach { (team, teamUUIDs) ->
-                val scoreboardTeam = player.scoreboard.registerNewTeam(team.teamName)
-                scoreboardTeam.prefix(gameManager.mm.deserialize("<${team.teamColor}>${team.teamName} <gray>| <${team.teamColor}>"))
-                gameManager.plugin.server.onlinePlayers.filter { it.uniqueId in teamUUIDs }.forEach {
-                    scoreboardTeam.addPlayer(it)
-                }
-            }
-        }
-
-        for (team in filledTeams) {
-            teamSideBarComponents[team.key] = TeamScoreboardComponent(gameManager, team.key)
-
-            val overworldCreator = WorldCreator(
-                NamespacedKey(
-                    gameManager.plugin,
-                    team.key.teamName
-                )
-            ).seed(seed).forcedSpawnPosition(Position.block(0, 100, 0), 0f, 0f)
-            val overworld = overworldCreator.createWorld()!!
-            val nether = WorldCreator(
-                NamespacedKey(
-                    gameManager.plugin,
-                    "${team.key.teamName}_nether"
-                )
-            ).environment(World.Environment.NETHER).seed(seed).forcedSpawnPosition(Position.block(0, 100, 0), 0f, 0f)
-                .createWorld()!!
-
-            // Set gamerules
-            overworld.setGameRule(GameRules.PVP, false)
-            nether.setGameRule(GameRules.PVP, false)
-            overworld.setGameRule(GameRules.KEEP_INVENTORY, gameManager.bingoConfiguration.keepInventory)
-            nether.setGameRule(GameRules.KEEP_INVENTORY, gameManager.bingoConfiguration.keepInventory)
-            overworld.difficulty = gameManager.bingoConfiguration.minecraftDifficulty
-            nether.difficulty = gameManager.bingoConfiguration.minecraftDifficulty
-
-            gameManager.teamWorlds[team.key] = overworld to nether
-
-            gameManager.plugin.server.scheduler.runTaskAsynchronously(gameManager.plugin) { _ ->
-                val spawnPosition =
-                    (overworld as CraftWorld).handle.chunkSource.randomState().sampler().findSpawnPosition()
-                val spawnLocation = Location(
-                    overworld, spawnPosition.x.toDouble(),
-                    spawnPosition.y.toDouble(), spawnPosition.z.toDouble()
-                )
-                gameManager.plugin.server.scheduler.runTask(gameManager.plugin) { _ ->
-                    overworld.getChunkAtAsync(spawnLocation).thenAccept { chunk ->
-                        spawnLocation.y = chunk.world.getHighestBlockYAt(
-                            spawnLocation.x.toInt(),
-                            spawnLocation.z.toInt()
-                        ) + 1.0
-                        overworld.spawnLocation = spawnLocation
-                        team.value.forEach { teamUUID ->
-                            gameManager.plugin.server.onlinePlayers.filter { it.uniqueId == teamUUID }.forEach {
-                                it.respawnLocation = overworld.spawnLocation
-                            }
-                        }
-                        finishedTeamInits++
+            gameManager.plugin.server.scheduler.runTaskTimer(gameManager.plugin, { task ->
+                if (finishedPlayerInits == filledTeams.map { it.value.size }.sum()) {
+                    gameManager.plugin.server.onlinePlayers.forEach { player ->
+                        player.teleport(gameManager.teamWorlds[player.getBingoTeam(gameManager)]!!.first.spawnLocation)
                     }
+                    gameManager.nextState()
+                    task.cancel()
                 }
-            }
+            }, 0L, 1L)
         }
 
-        sideBar = gameManager.plugin.scoreboardLibrary.createSidebar()
-
-        sideBarLayout = ComponentSidebarLayout(
-            SidebarComponent.staticLine(
-                Component.text(
-                    "Bingo", NamedTextColor.BLUE,
-                    TextDecoration.BOLD
-                )
-            ),
-            SidebarComponent.builder().run {
-                var componentBuilder: SidebarComponent.Builder = this
-                teamSideBarComponents.values.forEach {
-                    componentBuilder = componentBuilder.addComponent(it)
-                }
-                componentBuilder
-            }.build()
-        )
-
-        gameManager.plugin.server.scheduler.runTaskTimer(gameManager.plugin, { task ->
-            if (finishedPlayerInits == filledTeams.map { it.value.size }
-                    .sum() && finishedTeamInits == filledTeams.size) {
-                gameManager.plugin.server.onlinePlayers.forEach { player ->
-                    player.teleport(gameManager.teamWorlds[player.getBingoTeam(gameManager)]!!.first.spawnLocation)
-                }
-                gameManager.nextState()
-                task.cancel()
-            }
-        }, 0L, 1L)
+        initializeSidebar()
     }
 
     override fun endState() {

@@ -1,5 +1,6 @@
 package dev.boecker.cherrycave.bingo.game.state.prepare
 
+import dev.boecker.cherrycave.bingo.game.state.GamePreperationState
 import io.ktor.client.*
 import io.ktor.client.call.body
 import io.ktor.client.engine.cio.*
@@ -9,7 +10,11 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.*
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import net.kyori.adventure.bossbar.BossBar
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.TextColor
 import org.bukkit.Material
 
 val resourcePackGenUrl = System.getenv("RP_GEN_URL") ?: "http://localhost:3000"
@@ -48,4 +53,28 @@ suspend fun getResourcePackForMaterials(materials: List<Material>, boardSize: In
     val generatedResourcePack = generateResponse.body<GenerateResourcePackResponse>()
 
     return generatedResourcePack.hash to generatedResourcePack.downloadUrl
+}
+
+fun GamePreperationState.setResourcePack() {
+    gameManager.plugin.coroutineScope.launch {
+        val resourcePackResponse =
+            getResourcePackForMaterials(gameManager.bingoBoard!!, gameManager.bingoConfiguration.boardSize)
+
+        val (hash, downloadPath) = resourcePackResponse
+
+        gameManager.plugin.server.onlinePlayers.forEach { player ->
+            player.setResourcePack("${resourcePackGenUrl}${downloadPath}", hash, true)
+
+            player.activeBossBars().forEach { bossBar ->
+                player.hideBossBar(bossBar)
+            }
+
+            player.showBossBar(
+                BossBar.bossBar(
+                    Component.text("\uE000", TextColor.fromHexString("#FE01FE")), 0f, BossBar.Color.RED,
+                    BossBar.Overlay.PROGRESS
+                )
+            )
+        }
+    }
 }
