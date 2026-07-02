@@ -19,9 +19,10 @@ fun checkIfBingoItem(material: Material, player: Player, gameManager: BingoGameM
     val othersCollectSound = Sound.sound(Key.key("block.note_block.bass"), Sound.Source.PLAYER, 1f, 1f)
 
     if (gameManager.bingoBoard!!.contains(material) && !gameManager.ingameState.collectedItems[team]!!.contains(material)) {
+        gameManager.ingameState.collectedItems[team]!!.add(material)
         gameManager.plugin.server.broadcast(
             MiniMessage.miniMessage()
-                .deserialize("<${team.teamColor}>${team.teamName} <white>collected</white> <blue><lang:${material.translationKey()}><white>! <gray>(${gameManager.ingameState.collectedItems[team]!!.size}/${gameManager.bingoBoard!!.size}")
+                .deserialize("<${team.teamColor}>${team.teamName} <white>collected</white> <blue><lang:${material.translationKey()}><white>! <gray>(${gameManager.ingameState.collectedItems[team]!!.size}/${gameManager.bingoBoard!!.size})")
         )
         val teamUUIDs = gameManager.teams[team]!!
         gameManager.plugin.server.onlinePlayers.forEach { player ->
@@ -31,8 +32,6 @@ fun checkIfBingoItem(material: Material, player: Player, gameManager: BingoGameM
                 player.playSound(othersCollectSound, Sound.Emitter.self())
             }
         }
-
-        gameManager.ingameState.collectedItems[team]!!.add(material)
 
         if (checkForBingo(team, gameManager)) {
             gameManager.winnerTeam = team
