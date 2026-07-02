@@ -17,7 +17,9 @@ import org.bukkit.event.entity.EntityPickupItemEvent
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryCloseEvent
 import org.bukkit.event.player.*
+import org.bukkit.inventory.ItemStack
 import xyz.xenondevs.invui.window.Window
+import java.util.function.BiConsumer
 
 class IngameState(manager: BingoGameManager) : GameState(manager) {
 
@@ -25,10 +27,13 @@ class IngameState(manager: BingoGameManager) : GameState(manager) {
 
     lateinit var collectedItems: Map<BingoTeams, MutableList<Material>>
 
+    lateinit var backpacks: Map<BingoTeams, MutableList<ItemStack>>
+
     override fun startState() {
         super.startState()
 
         collectedItems = BingoTeams.entries.associateWith { team -> mutableListOf() }
+        backpacks = BingoTeams.entries.associateWith { team -> mutableListOf() }
 
         bingoBoardInventory =
             bingoBoardInventory(gameManager.bingoConfiguration.boardSize, gameManager.bingoBoard!!, gameManager)

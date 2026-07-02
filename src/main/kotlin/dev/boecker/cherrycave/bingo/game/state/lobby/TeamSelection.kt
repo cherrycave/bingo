@@ -43,16 +43,17 @@ fun createTeamItem(gameManager: BingoGameManager, team: BingoTeams): BoundItem.B
         builder
     }.addClickHandler { item, gui, click ->
         val itemProvider = item.getItemProvider(click.player)
-        val clickedTeam = gameManager.teams[BingoTeams.entries.find { it.block == itemProvider.get().type }]!!
-        if (clickedTeam.contains(click.player.uniqueId)) {
+        val clickedTeam = BingoTeams.entries.find { it.block == itemProvider.get().type }!!
+        val teamUUIDs = gameManager.teams[clickedTeam]!!
+        if (teamUUIDs.contains(click.player.uniqueId)) {
             return@addClickHandler
         }
-        clickedTeam.add(click.player.uniqueId)
+        teamUUIDs.add(click.player.uniqueId)
         gameManager.teams.forEach { (previousTeam, uuids) ->
             if (uuids.contains(click.player.uniqueId) && previousTeam != team) {
                 uuids.remove(click.player.uniqueId)
             }
         }
-        gameManager.lobbyState.checkStartRequirements()
+        gameManager.lobbyState.teamChangeDispatcher.accept(click.player, clickedTeam)
         gui.notifyWindows()
     }

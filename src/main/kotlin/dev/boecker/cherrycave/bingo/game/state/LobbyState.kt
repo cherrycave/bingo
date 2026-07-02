@@ -3,6 +3,8 @@ package dev.boecker.cherrycave.bingo.game.state
 import dev.boecker.cherrycave.bingo.game.BingoGameManager
 import dev.boecker.cherrycave.bingo.game.state.lobby.gameConfigurationGUI
 import dev.boecker.cherrycave.bingo.game.state.lobby.teamSelectionGUI
+import dev.boecker.cherrycave.bingo.game.team.BingoTeams
+import dev.boecker.cherrycave.bingo.game.team.getBingoTeam
 import io.papermc.paper.event.player.AsyncPlayerSpawnLocationEvent
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
@@ -21,13 +23,14 @@ import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.event.player.PlayerSwapHandItemsEvent
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
+import java.util.function.BiConsumer
 
 class LobbyState(manager: BingoGameManager) : GameState(manager), Listener {
 
     val teamSelectionInventory = teamSelectionGUI(gameManager)
     val gameConfigInventory = gameConfigurationGUI(gameManager)
 
-    lateinit var teamSelectionItem: ItemStack
+    lateinit var teamSelectionItems: Map<BingoTeams, ItemStack>
     lateinit var gameConfigItem: ItemStack
 
     var starting = false
@@ -39,6 +42,8 @@ class LobbyState(manager: BingoGameManager) : GameState(manager), Listener {
     val lobbyWorld = gameManager.plugin.server.getWorld(NamespacedKey.minecraft("overworld"))
     val lobbySpawn = Location(lobbyWorld, 0.0, 1.0, 0.0, 180f, 0f)
 
+    lateinit var teamChangeDispatcher: BiConsumer<Player, BingoTeams>
+
     override fun startState() {
         lobbyWorld?.setGameRule(GameRules.PVP, false)
         gameManager.winnerTeam = null
@@ -47,11 +52,13 @@ class LobbyState(manager: BingoGameManager) : GameState(manager), Listener {
         timer = 30
         timerSchedule = null
 
-        val teamItem = ItemStack(Material.PURPLE_WOOL)
-        val teamSelectItemMeta = teamItem.itemMeta
-        teamSelectItemMeta.itemName(Component.text("Team Selection", NamedTextColor.BLUE))
-        teamItem.itemMeta = teamSelectItemMeta
-        teamSelectionItem = teamItem
+        teamSelectionItems = BingoTeams.entries.associateWith { team ->
+            val teamItem = ItemStack(team.block)
+            val teamSelectItemMeta = teamItem.itemMeta
+            teamSelectItemMeta.itemName(Component.text("Team Selection", team.teamColor))
+            teamItem.itemMeta = teamSelectItemMeta
+            teamItem
+        }
 
         val configItem = ItemStack(Material.REPEATER)
         val configItemMeta = configItem.itemMeta
@@ -94,6 +101,13 @@ class LobbyState(manager: BingoGameManager) : GameState(manager), Listener {
 
         gameManager.plugin.server.onlinePlayers.forEach { player ->
             giveConfigItems(player)
+        }
+
+        teamChangeDispatcher = { player, team ->
+            if (isActive) {
+                player.inventory.setItem(0, teamSelectionItems[team]!!)
+                checkStartRequirements()
+            }
         }
 
         checkStartRequirements()
@@ -163,7 +177,7 @@ class LobbyState(manager: BingoGameManager) : GameState(manager), Listener {
     }
 
     fun giveConfigItems(player: Player) {
-        player.inventory.setItem(0, teamSelectionItem)
+        player.inventory.setItem(0, teamSelectionItems[player.getBingoTeam(gameManager)]!!)
 
         if (player.hasPermission("bingo.configure")) {
             player.inventory.setItem(8, gameConfigItem)
@@ -186,7 +200,7 @@ class LobbyState(manager: BingoGameManager) : GameState(manager), Listener {
         event.isCancelled = true
         if (event.hand != EquipmentSlot.HAND) return
 
-        if (event.item?.isSimilar(teamSelectionItem) ?: false) {
+        if (event.item?.isSimilar(teamSelectionItems[event.player.getBingoTeam(gameManager)]!!) ?: false) {
             teamSelectionInventory.open(event.player)
         } else if (event.item?.isSimilar(gameConfigItem) ?: false) {
             gameConfigInventory.open(event.player)
