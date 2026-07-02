@@ -33,36 +33,46 @@ fun checkIfBingoItem(material: Material, player: Player, gameManager: BingoGameM
             }
         }
 
-        if (checkForBingo(team, gameManager)) {
+        val (bestRowSize, missingItems) = checkForBingo(team, gameManager)
+        if (bestRowSize == gameManager.bingoConfiguration.boardSize) {
             gameManager.winnerTeam = team
             gameManager.nextState()
+        } else if (bestRowSize == gameManager.bingoConfiguration.boardSize - 1) {
+            gameManager.plugin.server.broadcast(
+                MiniMessage.miniMessage()
+                    .deserialize(
+                        "<${team.teamColor}>${team.teamName} <white>only needs one ${if (missingItems.size > 1) "of the following items" else "item"} to win: <blue>${
+                            missingItems.joinToString(
+                                "<white>, <blue>"
+                            ) { "<lang:${it.translationKey()}>" }
+                        }"
+                    )
+            )
         }
     }
 }
 
-fun checkForBingo(team: BingoTeams, gameManager: BingoGameManager): Boolean {
+fun checkForBingo(team: BingoTeams, gameManager: BingoGameManager): Pair<Int, Set<Material>> {
     val board = gameManager.bingoBoard!!
 
     val boardSize = gameManager.bingoConfiguration.boardSize
 
-    val twoDimensionalBoard = board.windowed(boardSize, boardSize)
+    val twoDimensionalBoard = board.chunked(boardSize)
 
-    if (twoDimensionalBoard.any { row -> row.all { it in gameManager.ingameState.collectedItems[team]!! } }) {
-        return true
-    }
+    val bestRows =
+        twoDimensionalBoard.map { row -> row.intersect(gameManager.ingameState.collectedItems[team]!!.toSet()).size to (row - gameManager.ingameState.collectedItems[team]!!.toSet()) }
 
-    for (i in 0 until boardSize) {
-        if (twoDimensionalBoard.all { row -> row[i] in gameManager.ingameState.collectedItems[team]!! }) return true
-    }
+    val bestColumns =
+        (0 until boardSize).map { x -> (0 until boardSize).map { y -> board[y * boardSize + x] } }
+            .map { row -> row.intersect(gameManager.ingameState.collectedItems[team]!!.toSet()).size to (row - gameManager.ingameState.collectedItems[team]!!.toSet()) }
 
-    val fromLeftIterator = (0 until boardSize)
-    if (fromLeftIterator.all { i ->
-            twoDimensionalBoard[i][i] in gameManager.ingameState.collectedItems[team]!!
-        }) return true
+    val diagonal1Intersect = (0 until boardSize).map { i -> twoDimensionalBoard[i][i] }
+        .let { row -> row.intersect(gameManager.ingameState.collectedItems[team]!!.toSet()).size to (row - gameManager.ingameState.collectedItems[team]!!.toSet()) }
 
+    val diagonal2Intersect = ((boardSize - 1) downTo 0).map { i -> twoDimensionalBoard[i][i] }
+        .let { row -> row.intersect(gameManager.ingameState.collectedItems[team]!!.toSet()).size to (row - gameManager.ingameState.collectedItems[team]!!.toSet()) }
 
-    val fromRightIterator = ((boardSize - 1) downTo 0)
-    return fromRightIterator.all { i ->
-        twoDimensionalBoard[i][i] in gameManager.ingameState.collectedItems[team]!!
-    }
+    val bestBingos = (bestRows + bestColumns + diagonal1Intersect + diagonal2Intersect).groupBy { it.first }.maxBy { it.key }.value
+
+    return bestBingos.first().first to bestBingos.flatMap { it.second }.toSet()
 }
