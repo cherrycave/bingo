@@ -17,13 +17,14 @@ fun gameConfigurationGUI(gameManager: BingoGameManager) = Window.builder()
     .setUpperGui(
         Gui.builder().setStructure(
             "# # # # # # # # #",
-            "# b # # # # # p #",
+            "# b t # # # # p #",
             "# d k # # # # s #",
             "# # # # # # # # #",
         ).addIngredient('#', Item.simple(ItemBuilder(Material.BLACK_STAINED_GLASS_PANE).setName("")))
             .addIngredient('p', timerPauseItem(gameManager))
             .addIngredient('s', skipTimerItem(gameManager))
             .addIngredient('b', boardSizeItem(gameManager))
+            .addIngredient('t', allowTPCommandsItem(gameManager))
             .addIngredient('d', minecraftDifficultyItem(gameManager))
             .addIngredient('k', keepInvItem(gameManager)).build()
     )
@@ -79,6 +80,19 @@ fun boardSizeItem(gameManager: BingoGameManager) = BoundItem.builder().setItemPr
     }
     item.notifyWindows()
 }
+
+fun allowTPCommandsItem(gameManager: BingoGameManager) = BoundItem.builder().setItemProvider { _ ->
+    val currentValue = gameManager.bingoConfiguration.allowTeleportCommands
+    val itemBuilder = ItemBuilder(Material.ENDER_PEARL).setName(gameManager.mm.deserialize("<gray>Allow Teleport commands: <blue>${currentValue}")).setLore(listOf(
+        gameManager.mm.deserialize("<gray>Click to change")))
+
+    itemBuilder
+}.addClickHandler { item, _, _ ->
+    val config = gameManager.bingoConfiguration
+    gameManager.bingoConfiguration = gameManager.bingoConfiguration.copy(allowTeleportCommands = !config.allowTeleportCommands)
+    item.notifyWindows()
+}
+
 
 fun minecraftDifficultyItem(gameManager: BingoGameManager) = BoundItem.builder().setItemProvider { _ ->
     val currentDifficulty = gameManager.bingoConfiguration.minecraftDifficulty
