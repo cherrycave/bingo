@@ -5,12 +5,18 @@ import dev.boecker.cherrycave.bingo.game.BingoGameManager
 import dev.boecker.cherrycave.bingo.game.state.prepare.getResourcePackForMaterials
 import dev.boecker.cherrycave.bingo.game.state.prepare.resourcePackGenUrl
 import dev.boecker.cherrycave.bingo.game.team.BingoTeams
+import dev.boecker.cherrycave.bingo.game.team.getBingoTeam
+import dev.boecker.cherrycave.bingo.scoreboard.TeamScoreboardComponent
 import io.papermc.paper.math.Position
 import kotlinx.coroutines.launch
 import net.kyori.adventure.bossbar.BossBar
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import net.kyori.adventure.text.format.TextColor
+import net.kyori.adventure.text.format.TextDecoration
+import net.megavex.scoreboardlibrary.api.sidebar.Sidebar
+import net.megavex.scoreboardlibrary.api.sidebar.component.ComponentSidebarLayout
+import net.megavex.scoreboardlibrary.api.sidebar.component.SidebarComponent
 import org.bukkit.*
 import org.bukkit.craftbukkit.CraftWorld
 import org.bukkit.event.EventHandler
@@ -18,6 +24,7 @@ import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.event.player.PlayerJoinEvent
+import org.bukkit.event.player.PlayerResourcePackStatusEvent
 import org.bukkit.event.player.PlayerSwapHandItemsEvent
 import org.bukkit.inventory.EquipmentSlot
 import kotlin.random.Random
@@ -69,18 +76,29 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
                 it != Material.JIGSAW &&
                 it != Material.FROGSPAWN &&
                 it != Material.PETRIFIED_OAK_SLAB &&
+                it != Material.TEST_INSTANCE_BLOCK &&
                 it != Material.FARMLAND
     }
 
     var scheduler: Int? = null
 
-    var finishedSpawnPositions: Int = 0
+    var finishedPlayerInits: Int = 0
+    var finishedTeamInits: Int = 0
+
+    var sideBar: Sidebar? = null
+    var sideBarLayout: ComponentSidebarLayout? = null
+    var teamSideBarComponents: MutableMap<BingoTeams, TeamScoreboardComponent> = mutableMapOf()
 
     override fun startState() {
         super.startState()
 
+        finishedPlayerInits = 0
+        finishedTeamInits = 0
+
+        teamSideBarComponents = mutableMapOf()
+
         scheduler = gameManager.plugin.server.scheduler.scheduleSyncRepeatingTask(gameManager.plugin, {
-            gameManager.plugin.server.sendActionBar(Component.text("Generating worlds...", NamedTextColor.GREEN))
+            gameManager.plugin.server.sendActionBar(Component.text("Preparing game...", NamedTextColor.GREEN))
         }, 0L, 20)
 
         val seed = Random.nextLong()
@@ -98,7 +116,8 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
         gameManager.bingoBoard = newBoard.toList()
 
         gameManager.plugin.coroutineScope.launch {
-            val resourcePackResponse = getResourcePackForMaterials(gameManager.bingoBoard!!, gameManager.bingoConfiguration.boardSize)
+            val resourcePackResponse =
+                getResourcePackForMaterials(gameManager.bingoBoard!!, gameManager.bingoConfiguration.boardSize)
 
             val (hash, downloadPath) = resourcePackResponse
 
@@ -135,6 +154,8 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
         }
 
         for (team in filledTeams) {
+            teamSideBarComponents[team.key] = TeamScoreboardComponent(gameManager, team.key)
+
             val overworldCreator = WorldCreator(
                 NamespacedKey(
                     gameManager.plugin,
@@ -176,18 +197,39 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
                         overworld.spawnLocation = spawnLocation
                         team.value.forEach { teamUUID ->
                             gameManager.plugin.server.onlinePlayers.filter { it.uniqueId == teamUUID }.forEach {
-                                it.teleportAsync(overworld.spawnLocation)
                                 it.respawnLocation = overworld.spawnLocation
                             }
                         }
-                        finishedSpawnPositions++
+                        finishedTeamInits++
                     }
                 }
             }
         }
 
+        sideBar = gameManager.plugin.scoreboardLibrary.createSidebar()
+
+        sideBarLayout = ComponentSidebarLayout(
+            SidebarComponent.staticLine(
+                Component.text(
+                    "Bingo", NamedTextColor.BLUE,
+                    TextDecoration.BOLD
+                )
+            ),
+            SidebarComponent.builder().run {
+                var componentBuilder: SidebarComponent.Builder = this
+                teamSideBarComponents.values.forEach {
+                    componentBuilder = componentBuilder.addComponent(it)
+                }
+                componentBuilder
+            }.build()
+        )
+
         gameManager.plugin.server.scheduler.runTaskTimer(gameManager.plugin, { task ->
-            if (finishedSpawnPositions == filledTeams.size) {
+            if (finishedPlayerInits == filledTeams.map { it.value.size }
+                    .sum() && finishedTeamInits == filledTeams.size) {
+                gameManager.plugin.server.onlinePlayers.forEach { player ->
+                    player.teleport(gameManager.teamWorlds[player.getBingoTeam(gameManager)]!!.first.spawnLocation)
+                }
                 gameManager.nextState()
                 task.cancel()
             }
@@ -201,6 +243,17 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
         }
 
         super.endState()
+    }
+
+    @EventHandler
+    fun onPlayerResourcePackStatus(event: PlayerResourcePackStatusEvent) {
+        if (event.status == PlayerResourcePackStatusEvent.Status.SUCCESSFULLY_LOADED) {
+            val team = event.player.getBingoTeam(gameManager)
+
+            if (team != null) {
+                finishedPlayerInits++
+            }
+        }
     }
 
     @EventHandler

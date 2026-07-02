@@ -5,6 +5,7 @@ import dev.boecker.cherrycave.bingo.game.team.getBingoTeam
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.JoinConfiguration
 import net.kyori.adventure.text.format.NamedTextColor
+import org.bukkit.GameMode
 import org.bukkit.Material
 import xyz.xenondevs.invui.gui.Markers
 import xyz.xenondevs.invui.gui.PagedGui
@@ -24,29 +25,26 @@ fun bingoBoardInventory(size: Int, board: List<Material>, gameManager: BingoGame
                 Item.builder().setItemProvider { player ->
                     val team = player.getBingoTeam(gameManager)
                     val itemBuilder = ItemBuilder(material)
-                    if (gameManager.ingameState.isActive && gameManager.ingameState.collectedItems[team]!!.contains(
+                    itemBuilder.setLore(gameManager.teams.filter {
+                        gameManager.ingameState.collectedItems[it.key]?.contains(
                             material
-                        )
-                    ) {
-                        itemBuilder.setGlint(true)
-                        itemBuilder.setLore(listOf(Component.text("collected", NamedTextColor.GREEN)))
-                    } else if (gameManager.gameOverState.isActive && gameManager.ingameState.collectedItems[gameManager.winnerTeam]!!.contains(
-                            material
-                        )
-                    ) {
-                        itemBuilder.setGlint(true)
-                        itemBuilder.setLore(
-                            listOf(
-                                Component.join(
-                                    JoinConfiguration.spaces(),
-                                    Component.text(
-                                        "${gameManager.winnerTeam?.teamName}",
-                                        gameManager.winnerTeam?.teamColor
-                                    ),
-                                    Component.text("collected", NamedTextColor.GREEN)
-                                )
+                        ) ?: false
+                    }.map { (team, _) ->
+                        Component.join(
+                            JoinConfiguration.spaces(),
+                            Component.text(
+                                team.teamName,
+                                team.teamColor
+                            ),
+                            Component.text("collected at", NamedTextColor.GREEN),
+                            Component.text(
+                                gameManager.ingameState.collectedItems[team]!![material]!!.formatBingoTime(),
+                                NamedTextColor.BLUE
                             )
                         )
+                    })
+                    if (gameManager.ingameState.collectedItems[team]?.contains(material) ?: false) {
+                        itemBuilder.setGlint(true)
                     }
 
                     itemBuilder
@@ -55,7 +53,7 @@ fun bingoBoardInventory(size: Int, board: List<Material>, gameManager: BingoGame
     )
 
 fun generateGUIStructure(size: Int): Array<String> {
-    val basicString = (0 until minOf(size + 2, 6)).map {
+    val basicString = (0 until minOf(size, 6)).map {
         "#########".toMutableList()
     }.toMutableList()
     val startRow = floor((basicString.size - size) / 2.0).toInt()

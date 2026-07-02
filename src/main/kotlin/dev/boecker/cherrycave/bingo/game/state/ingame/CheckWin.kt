@@ -8,6 +8,7 @@ import net.kyori.adventure.sound.Sound
 import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.Material
 import org.bukkit.entity.Player
+import kotlin.time.Clock
 
 fun checkIfBingoItem(material: Material, player: Player, gameManager: BingoGameManager) {
     if (!gameManager.ingameState.isActive) return
@@ -19,7 +20,7 @@ fun checkIfBingoItem(material: Material, player: Player, gameManager: BingoGameM
     val othersCollectSound = Sound.sound(Key.key("block.note_block.bass"), Sound.Source.PLAYER, 1f, 1f)
 
     if (gameManager.bingoBoard!!.contains(material) && !gameManager.ingameState.collectedItems[team]!!.contains(material)) {
-        gameManager.ingameState.collectedItems[team]!!.add(material)
+        gameManager.ingameState.collectedItems[team]!![material] = (Clock.System.now().epochSeconds - gameManager.ingameState.startTime)
         gameManager.plugin.server.broadcast(
             MiniMessage.miniMessage()
                 .deserialize("<${team.teamColor}>${player.name} <gray>(<${team.teamColor}>${team.teamName}<gray>) <white>collected</white> <blue><lang:${material.translationKey()}><white>! <gray>(${gameManager.ingameState.collectedItems[team]!!.size}/${gameManager.bingoBoard!!.size})")
@@ -32,6 +33,8 @@ fun checkIfBingoItem(material: Material, player: Player, gameManager: BingoGameM
                 player.playSound(othersCollectSound, Sound.Emitter.self())
             }
         }
+
+        gameManager.ingameState.collectItemDispatch.accept(team, material)
 
         val (bestRowSize, missingItems) = checkForBingo(team, gameManager)
         if (bestRowSize == gameManager.bingoConfiguration.boardSize) {
@@ -60,17 +63,17 @@ fun checkForBingo(team: BingoTeams, gameManager: BingoGameManager): Pair<Int, Se
     val twoDimensionalBoard = board.chunked(boardSize)
 
     val bestRows =
-        twoDimensionalBoard.map { row -> row.intersect(gameManager.ingameState.collectedItems[team]!!.toSet()).size to (row - gameManager.ingameState.collectedItems[team]!!.toSet()) }
+        twoDimensionalBoard.map { row -> row.intersect(gameManager.ingameState.collectedItems[team]!!.keys).size to (row - gameManager.ingameState.collectedItems[team]!!.keys) }
 
     val bestColumns =
         (0 until boardSize).map { x -> (0 until boardSize).map { y -> board[y * boardSize + x] } }
-            .map { row -> row.intersect(gameManager.ingameState.collectedItems[team]!!.toSet()).size to (row - gameManager.ingameState.collectedItems[team]!!.toSet()) }
+            .map { row -> row.intersect(gameManager.ingameState.collectedItems[team]!!.keys).size to (row - gameManager.ingameState.collectedItems[team]!!.keys) }
 
     val diagonal1Intersect = (0 until boardSize).map { i -> twoDimensionalBoard[i][i] }
-        .let { row -> row.intersect(gameManager.ingameState.collectedItems[team]!!.toSet()).size to (row - gameManager.ingameState.collectedItems[team]!!.toSet()) }
+        .let { row -> row.intersect(gameManager.ingameState.collectedItems[team]!!.keys).size to (row - gameManager.ingameState.collectedItems[team]!!.keys) }
 
     val diagonal2Intersect = ((boardSize - 1) downTo 0).map { i -> twoDimensionalBoard[i][i] }
-        .let { row -> row.intersect(gameManager.ingameState.collectedItems[team]!!.toSet()).size to (row - gameManager.ingameState.collectedItems[team]!!.toSet()) }
+        .let { row -> row.intersect(gameManager.ingameState.collectedItems[team]!!.keys).size to (row - gameManager.ingameState.collectedItems[team]!!.keys) }
 
     val bestBingos = (bestRows + bestColumns + diagonal1Intersect + diagonal2Intersect).groupBy { it.first }.maxBy { it.key }.value
 

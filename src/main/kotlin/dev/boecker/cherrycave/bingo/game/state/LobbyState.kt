@@ -32,6 +32,7 @@ class LobbyState(manager: BingoGameManager) : GameState(manager), Listener {
 
     lateinit var teamSelectionItems: Map<BingoTeams, ItemStack>
     lateinit var gameConfigItem: ItemStack
+    lateinit var previouseBoardItem: ItemStack
 
     var starting = false
     var paused = false
@@ -67,6 +68,12 @@ class LobbyState(manager: BingoGameManager) : GameState(manager), Listener {
         configItemMeta.itemName(Component.text("Game Configuration", NamedTextColor.BLUE))
         configItem.itemMeta = configItemMeta
         gameConfigItem = configItem
+
+        val boardItem = ItemStack(Material.KNOWLEDGE_BOOK)
+        val boardItemMeta = configItem.itemMeta
+        boardItemMeta.itemName(Component.text("View Board of previous Round", NamedTextColor.GREEN))
+        boardItem.itemMeta = boardItemMeta
+        previouseBoardItem = boardItem
 
         timerSchedule = gameManager.plugin.server.scheduler.scheduleSyncRepeatingTask(gameManager.plugin, {
             if (!isActive) return@scheduleSyncRepeatingTask
@@ -205,10 +212,11 @@ class LobbyState(manager: BingoGameManager) : GameState(manager), Listener {
 
         if (event.item?.isSimilar(teamSelectionItems[event.player.getBingoTeam(gameManager)]!!) ?: false) {
             teamSelectionInventory.open(event.player)
+        } else if (event.item?.isSimilar(previouseBoardItem) ?: false) {
+            gameManager.ingameState.bingoBoardInventory.open(event.player)
         } else if (event.item?.isSimilar(gameConfigItem) ?: false) {
             gameConfigInventory.open(event.player)
         }
-
 
     }
 

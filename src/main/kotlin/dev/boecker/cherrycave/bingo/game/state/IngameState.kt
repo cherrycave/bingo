@@ -4,12 +4,15 @@ import dev.boecker.cherrycave.bingo.game.BingoGameManager
 import dev.boecker.cherrycave.bingo.game.state.ingame.backPackInventory
 import dev.boecker.cherrycave.bingo.game.state.ingame.bingoBoardInventory
 import dev.boecker.cherrycave.bingo.game.state.ingame.checkIfBingoItem
+import dev.boecker.cherrycave.bingo.game.state.ingame.formatBingoTime
 import dev.boecker.cherrycave.bingo.game.team.BingoTeams
 import dev.boecker.cherrycave.bingo.game.team.getBingoTeam
 import io.papermc.paper.datacomponent.DataComponentTypes
 import io.papermc.paper.event.entity.EntityPortalReadyEvent
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.TextDecoration
+import org.apache.commons.lang3.time.DateUtils
 import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.PortalType
@@ -24,21 +27,33 @@ import org.bukkit.event.player.*
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
 import xyz.xenondevs.invui.window.Window
+import java.time.format.DateTimeFormatter
+import java.util.function.BiConsumer
+import java.util.function.Consumer
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
 
 class IngameState(manager: BingoGameManager) : GameState(manager) {
 
     lateinit var bingoBoardInventory: Window.Builder.Normal.Split
 
-    lateinit var collectedItems: Map<BingoTeams, MutableList<Material>>
+    lateinit var collectedItems: Map<BingoTeams, MutableMap<Material, Long>>
 
     lateinit var backpacks: Map<BingoTeams, Window.Builder.Normal.Split>
 
     lateinit var backPackItem: ItemStack
 
+    lateinit var collectItemDispatch: BiConsumer<BingoTeams, Material>
+
+    var startTime: Long = 0
+    var timerScheduler: Int = -1
+
     override fun startState() {
         super.startState()
 
-        collectedItems = BingoTeams.entries.associateWith { team -> mutableListOf() }
+        startTime = Clock.System.now().epochSeconds
+
+        collectedItems = BingoTeams.entries.associateWith { team -> mutableMapOf() }
         backpacks = BingoTeams.entries.associateWith { team -> backPackInventory(gameManager) }
 
         val backPackItemstack = ItemStack(Material.BUNDLE)
@@ -54,8 +69,30 @@ class IngameState(manager: BingoGameManager) : GameState(manager) {
 
         gameManager.plugin.server.onlinePlayers.forEach { player ->
             player.gameMode = GameMode.SURVIVAL
-            bingoBoardInventory.open(player)
             player.inventory.setItem(17, backPackItem)
+            bingoBoardInventory.open(player)
+            gameManager.gamePreperationState.sideBarLayout?.apply(gameManager.gamePreperationState.sideBar!!)
+            gameManager.gamePreperationState.sideBar?.addPlayer(player)
+        }
+
+        timerScheduler = gameManager.plugin.server.scheduler.scheduleSyncRepeatingTask(gameManager.plugin, {
+            val currentTime = Clock.System.now().epochSeconds
+
+            val timeDifference = currentTime - startTime
+
+            gameManager.plugin.server.onlinePlayers.forEach { player ->
+                player.sendActionBar(
+                    Component.text(
+                        timeDifference.formatBingoTime(),
+                        NamedTextColor.BLUE,
+                        TextDecoration.BOLD
+                    )
+                )
+            }
+        }, 0L, 20L)
+
+        collectItemDispatch = { team, item ->
+            gameManager.gamePreperationState.sideBarLayout?.apply(gameManager.gamePreperationState.sideBar!!)
         }
     }
 

@@ -77,6 +77,7 @@ class GameOverState(manager: BingoGameManager) : GameState(manager) {
             gameManager.lobbyState.deletePlayerData(player)
             player.teleport(gameManager.lobbyState.lobbySpawn)
             player.gameMode = GameMode.ADVENTURE
+            player.inventory.setItem(1, gameManager.lobbyState.previouseBoardItem)
         }
 
         gameManager.teamWorlds.values.filterNotNull().forEach {
