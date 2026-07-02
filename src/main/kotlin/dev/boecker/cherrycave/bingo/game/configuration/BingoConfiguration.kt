@@ -8,4 +8,5 @@ data class BingoConfiguration(
     val keepInventory: Boolean = true,
     val allowTeleportCommands: Boolean = true,
     val backPackSize: Int = 3,
+    val hunger: Boolean = false,
 )
