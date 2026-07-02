@@ -1,10 +1,12 @@
 package dev.boecker.cherrycave.bingo.game.state
 
 import dev.boecker.cherrycave.bingo.game.BingoGameManager
+import dev.boecker.cherrycave.bingo.game.state.ingame.backPackInventory
 import dev.boecker.cherrycave.bingo.game.state.ingame.bingoBoardInventory
 import dev.boecker.cherrycave.bingo.game.state.ingame.checkIfBingoItem
 import dev.boecker.cherrycave.bingo.game.team.BingoTeams
 import dev.boecker.cherrycave.bingo.game.team.getBingoTeam
+import io.papermc.paper.datacomponent.DataComponentTypes
 import io.papermc.paper.event.entity.EntityPortalReadyEvent
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
@@ -13,13 +15,14 @@ import org.bukkit.Material
 import org.bukkit.PortalType
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
+import org.bukkit.event.block.Action
 import org.bukkit.event.entity.EntityPickupItemEvent
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryCloseEvent
 import org.bukkit.event.player.*
+import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
 import xyz.xenondevs.invui.window.Window
-import java.util.function.BiConsumer
 
 class IngameState(manager: BingoGameManager) : GameState(manager) {
 
@@ -27,13 +30,23 @@ class IngameState(manager: BingoGameManager) : GameState(manager) {
 
     lateinit var collectedItems: Map<BingoTeams, MutableList<Material>>
 
-    lateinit var backpacks: Map<BingoTeams, MutableList<ItemStack>>
+    lateinit var backpacks: Map<BingoTeams, Window.Builder.Normal.Split>
+
+    lateinit var backPackItem: ItemStack
 
     override fun startState() {
         super.startState()
 
         collectedItems = BingoTeams.entries.associateWith { team -> mutableListOf() }
-        backpacks = BingoTeams.entries.associateWith { team -> mutableListOf() }
+        backpacks = BingoTeams.entries.associateWith { team -> backPackInventory() }
+
+        val backPackItemstack = ItemStack(Material.BUNDLE)
+        val backPackItemMeta = backPackItemstack.itemMeta
+        backPackItemMeta.itemName(Component.text("Backpack", NamedTextColor.GOLD))
+        backPackItemMeta.lore(listOf(Component.text("Right-click to open", NamedTextColor.GRAY)))
+        backPackItemstack.itemMeta = backPackItemMeta
+        backPackItemstack.unsetData(DataComponentTypes.BUNDLE_CONTENTS)
+        backPackItem = backPackItemstack
 
         bingoBoardInventory =
             bingoBoardInventory(gameManager.bingoConfiguration.boardSize, gameManager.bingoBoard!!, gameManager)
@@ -41,6 +54,7 @@ class IngameState(manager: BingoGameManager) : GameState(manager) {
         gameManager.plugin.server.onlinePlayers.forEach { player ->
             player.gameMode = GameMode.SURVIVAL
             bingoBoardInventory.open(player)
+            player.inventory.setItem(17, backPackItem)
         }
     }
 
@@ -51,11 +65,30 @@ class IngameState(manager: BingoGameManager) : GameState(manager) {
     @EventHandler
     fun onInventoryClick(event: InventoryClickEvent) {
         if (!isActive) return
+        val clickedItem = event.getCurrentItem()
+        if (clickedItem != null && clickedItem.isSimilar(backPackItem) && event.click.isRightClick) {
+            event.isCancelled = true
+            backpacks[(event.whoClicked as Player).getBingoTeam(gameManager)!!]!!.open(event.whoClicked as Player)
+        }
+
         checkIfBingoItem(event.cursor.type, event.whoClicked as Player, gameManager)
         event.whoClicked.inventory.forEach {
             if (it != null && !it.isEmpty) {
                 checkIfBingoItem(it.type, event.whoClicked as Player, gameManager)
             }
+        }
+    }
+
+    @EventHandler
+    fun onInteractEvent(event: PlayerInteractEvent) {
+        if (!isActive) return
+        if (event.hand != EquipmentSlot.HAND && event.action != Action.RIGHT_CLICK_AIR && event.action == Action.RIGHT_CLICK_BLOCK) {
+            return
+        }
+
+        if (event.player.inventory.itemInMainHand.isSimilar(backPackItem)) {
+            event.isCancelled = true
+            backpacks[event.player.getBingoTeam(gameManager)!!]!!.open(event.player)
         }
     }
 
@@ -121,6 +154,14 @@ class IngameState(manager: BingoGameManager) : GameState(manager) {
         if (event.cause == PlayerTeleportEvent.TeleportCause.END_PORTAL || event.cause == PlayerTeleportEvent.TeleportCause.END_GATEWAY) {
             event.isCancelled = true
             return
+        }
+    }
+
+    @EventHandler
+    fun onPlayerDropItem(event: PlayerDropItemEvent) {
+        if (!isActive) return
+        if (event.itemDrop.itemStack.isSimilar(backPackItem)) {
+            event.isCancelled = true
         }
     }
 

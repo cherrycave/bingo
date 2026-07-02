@@ -31,6 +31,9 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
                 it != Material.DRAGON_BREATH &&
                 it != Material.DRAGON_EGG &&
                 !Tag<Material>.SHULKER_BOXES.isTagged(it) &&
+                // Oxidized Copper
+                !MaterialTags.OXIDIZED_COPPER_BLOCKS.isTagged(it) &&
+                !MaterialTags.WEATHERED_COPPER_BLOCKS.isTagged(it) &&
                 // Not obtainable in survival or too difficult
                 !MaterialTags.INFESTED_BLOCKS.isTagged(it) &&
                 !MaterialTags.SKULLS.isTagged(it) &&
@@ -38,6 +41,7 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
                 !MaterialTags.COMMAND_BLOCKS.isTagged(it) &&
                 it != Material.END_PORTAL_FRAME &&
                 it != Material.END_PORTAL &&
+                it != Material.BEACON &&
                 it != Material.TRIAL_SPAWNER &&
                 it != Material.VAULT &&
                 it != Material.SUSPICIOUS_SAND &&
@@ -137,15 +141,15 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
                                 it.teleportAsync(overworld.spawnLocation)
                                 it.respawnLocation = overworld.spawnLocation
                             }
-                            finishedSpawnPositions++
                         }
+                        finishedSpawnPositions++
                     }
                 }
             }
         }
 
         gameManager.plugin.server.scheduler.runTaskTimer(gameManager.plugin, { task ->
-            if (finishedSpawnPositions >= filledTeams.size) {
+            if (finishedSpawnPositions == filledTeams.size) {
                 gameManager.nextState()
                 task.cancel()
             }
