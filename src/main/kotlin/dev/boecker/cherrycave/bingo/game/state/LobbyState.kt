@@ -48,6 +48,10 @@ class LobbyState(manager: BingoGameManager) : GameState(manager), Listener {
     override fun startState() {
         gameManager.plugin.slpf?.disableFormatting = false
 
+        gameManager.plugin.server.onlinePlayers.forEach { player ->
+            gameManager.gamePreperationState.sideBar?.removePlayer(player)
+        }
+
         lobbyWorld?.setGameRule(GameRules.PVP, false)
         gameManager.winnerTeam = null
         gameManager.bingoBoard = null

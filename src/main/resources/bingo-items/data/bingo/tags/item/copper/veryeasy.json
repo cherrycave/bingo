@@ -1,0 +1,27 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:copper_block",
+    "minecraft:chiseled_copper",
+    "minecraft:cut_copper",
+    "minecraft:cut_copper_stairs",
+    "minecraft:cut_copper_slab",
+    "minecraft:copper_bars",
+    "minecraft:copper_door",
+    "minecraft:copper_trapdoor",
+    "minecraft:copper_chest",
+    "minecraft:copper_sword",
+    "minecraft:copper_axe",
+    "minecraft:copper_pickaxe",
+    "minecraft:copper_shovel",
+    "minecraft:copper_hoe",
+    "minecraft:copper_spear",
+    "minecraft:raw_copper",
+    "minecraft:copper_ingot",
+    "minecraft:copper_nugget",
+    "minecraft:copper_torch",
+    "minecraft:copper_lantern",
+    "minecraft:copper_chain",
+    "minecraft:lightning_rod"
+  ]
+}

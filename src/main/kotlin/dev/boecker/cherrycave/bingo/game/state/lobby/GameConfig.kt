@@ -1,6 +1,7 @@
 package dev.boecker.cherrycave.bingo.game.state.lobby
 
 import dev.boecker.cherrycave.bingo.game.BingoGameManager
+import dev.boecker.cherrycave.bingo.game.item.BoardDifficulty
 import io.papermc.paper.datacomponent.DataComponentTypes
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
@@ -18,7 +19,7 @@ fun gameConfigurationGUI(gameManager: BingoGameManager) = Window.builder()
     .setUpperGui(
         Gui.builder().setStructure(
             "# # # # # # # # #",
-            "# b t B # # # p #",
+            "# b t B # D # p #",
             "# d k h # # # s #",
             "# # # # # # # # #",
         ).addIngredient('#', Item.simple(ItemBuilder(Material.BLACK_STAINED_GLASS_PANE).setName("")))
@@ -29,7 +30,8 @@ fun gameConfigurationGUI(gameManager: BingoGameManager) = Window.builder()
             .addIngredient('B', backpackSizeItem(gameManager))
             .addIngredient('d', minecraftDifficultyItem(gameManager))
             .addIngredient('k', keepInvItem(gameManager))
-            .addIngredient('h', hungerItem(gameManager)).build()
+            .addIngredient('h', hungerItem(gameManager))
+            .addIngredient('D', boardDifficultyItem(gameManager)).build()
     )
 
 fun timerPauseItem(gameManager: BingoGameManager) = BoundItem.builder().setItemProvider { _ ->
@@ -179,11 +181,12 @@ fun keepInvItem(gameManager: BingoGameManager) = BoundItem.builder().setItemProv
 fun hungerItem(gameManager: BingoGameManager) = BoundItem.builder().setItemProvider { _ ->
     val currentValue = gameManager.bingoConfiguration.hunger
     val itemBuilder =
-        ItemBuilder(Material.COOKED_BEEF).setName(gameManager.mm.deserialize("<gray>Hunger: <blue>${currentValue}")).setLore(
-            listOf(
-                gameManager.mm.deserialize("<gray>Click to change")
+        ItemBuilder(Material.COOKED_BEEF).setName(gameManager.mm.deserialize("<gray>Hunger: <blue>${currentValue}"))
+            .setLore(
+                listOf(
+                    gameManager.mm.deserialize("<gray>Click to change")
+                )
             )
-        )
 
     itemBuilder
 }.addClickHandler { item, _, _ ->
@@ -192,3 +195,42 @@ fun hungerItem(gameManager: BingoGameManager) = BoundItem.builder().setItemProvi
     item.notifyWindows()
 }
 
+fun boardDifficultyItem(gameManager: BingoGameManager) = BoundItem.builder().setItemProvider { _ ->
+    val currentDifficulty = gameManager.bingoConfiguration.boardDifficulty
+    val itemBuilder =
+        ItemBuilder(Material.GOLDEN_CARROT).setName(gameManager.mm.deserialize("<gray>Board Difficulty: <blue>${currentDifficulty.name}"))
+            .setLore(
+                listOf(
+                    gameManager.mm.deserialize("<gray>Left-Click to <green>increase"),
+                    gameManager.mm.deserialize("<gray>Right-Click to <red>decrease")
+                )
+            )
+
+    itemBuilder
+}.addClickHandler { item, _, click ->
+    val config = gameManager.bingoConfiguration
+    if (click.clickType == ClickType.LEFT) {
+        val newDifficulty = when (config.boardDifficulty) {
+            BoardDifficulty.VERY_EASY -> BoardDifficulty.EASY
+            BoardDifficulty.EASY -> BoardDifficulty.NORMAL
+            BoardDifficulty.NORMAL -> BoardDifficulty.MEDIUM
+            BoardDifficulty.MEDIUM -> BoardDifficulty.HARD
+            BoardDifficulty.HARD -> BoardDifficulty.VERY_HARD
+            BoardDifficulty.VERY_HARD -> BoardDifficulty.IMPOSSIBLE
+            BoardDifficulty.IMPOSSIBLE -> BoardDifficulty.IMPOSSIBLE
+        }
+        gameManager.bingoConfiguration = gameManager.bingoConfiguration.copy(boardDifficulty = newDifficulty)
+    } else if (click.clickType == ClickType.RIGHT) {
+        val newDifficulty = when (config.boardDifficulty) {
+            BoardDifficulty.VERY_EASY -> BoardDifficulty.VERY_EASY
+            BoardDifficulty.EASY -> BoardDifficulty.VERY_EASY
+            BoardDifficulty.NORMAL -> BoardDifficulty.EASY
+            BoardDifficulty.MEDIUM -> BoardDifficulty.NORMAL
+            BoardDifficulty.HARD -> BoardDifficulty.MEDIUM
+            BoardDifficulty.VERY_HARD -> BoardDifficulty.HARD
+            BoardDifficulty.IMPOSSIBLE -> BoardDifficulty.VERY_HARD
+        }
+        gameManager.bingoConfiguration = gameManager.bingoConfiguration.copy(boardDifficulty = newDifficulty)
+    }
+    item.notifyWindows()
+}

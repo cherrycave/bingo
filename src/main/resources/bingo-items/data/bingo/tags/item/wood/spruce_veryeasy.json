@@ -1,0 +1,20 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:spruce_logs",
+    "minecraft:spruce_planks",
+    "minecraft:spruce_stairs",
+    "minecraft:spruce_slab",
+    "minecraft:spruce_fence",
+    "minecraft:spruce_fence_gate",
+    "minecraft:spruce_door",
+    "minecraft:spruce_trapdoor",
+    "minecraft:spruce_pressure_plate",
+    "minecraft:spruce_button",
+    "minecraft:spruce_shelf",
+    "minecraft:spruce_sapling",
+    "minecraft:spruce_sign",
+    "minecraft:spruce_boat",
+    "minecraft:spruce_chest_boat"
+  ]
+}

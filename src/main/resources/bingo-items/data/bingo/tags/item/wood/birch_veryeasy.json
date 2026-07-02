@@ -1,0 +1,20 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:birch_logs",
+    "minecraft:birch_planks",
+    "minecraft:birch_stairs",
+    "minecraft:birch_slab",
+    "minecraft:birch_fence",
+    "minecraft:birch_fence_gate",
+    "minecraft:birch_door",
+    "minecraft:birch_trapdoor",
+    "minecraft:birch_pressure_plate",
+    "minecraft:birch_button",
+    "minecraft:birch_shelf",
+    "minecraft:birch_sapling",
+    "minecraft:birch_sign",
+    "minecraft:birch_boat",
+    "minecraft:birch_chest_boat"
+  ]
+}

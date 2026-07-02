@@ -3,8 +3,8 @@ version: '1.0'
 main: dev.boecker.cherrycave.bingo.BingoPlugin
 description: Bingo Game :)
 api-version: '26.1.2'
-#bootstrapper: io.papermc.testplugin.TestPluginBootstrap
 loader: dev.boecker.cherrycave.bingo.BingoPluginLoader
+bootstrapper: dev.boecker.cherrycave.bingo.BingoPluginBootstrap
 dependencies:
   server:
     SimpleLuckPermsFormatter:

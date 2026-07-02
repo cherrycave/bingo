@@ -2,11 +2,13 @@ package dev.boecker.cherrycave.bingo.game.state
 
 import com.destroystokyo.paper.MaterialTags
 import dev.boecker.cherrycave.bingo.game.BingoGameManager
+import dev.boecker.cherrycave.bingo.game.item.ItemDifficulty
 import dev.boecker.cherrycave.bingo.game.state.prepare.generateWorlds
 import dev.boecker.cherrycave.bingo.game.state.prepare.getResourcePackForMaterials
 import dev.boecker.cherrycave.bingo.game.state.prepare.initializeSidebar
 import dev.boecker.cherrycave.bingo.game.state.prepare.initializeTeams
 import dev.boecker.cherrycave.bingo.game.state.prepare.resourcePackGenUrl
+import dev.boecker.cherrycave.bingo.game.state.prepare.setBossbar
 import dev.boecker.cherrycave.bingo.game.state.prepare.setResourcePack
 import dev.boecker.cherrycave.bingo.game.team.BingoTeams
 import dev.boecker.cherrycave.bingo.game.team.getBingoTeam
@@ -32,6 +34,7 @@ import org.bukkit.event.player.PlayerResourcePackStatusEvent
 import org.bukkit.event.player.PlayerSwapHandItemsEvent
 import org.bukkit.inventory.EquipmentSlot
 import java.util.UUID
+import kotlin.math.floor
 import kotlin.random.Random
 
 class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
@@ -81,8 +84,9 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
                 it != Material.JIGSAW &&
                 it != Material.FROGSPAWN &&
                 it != Material.PETRIFIED_OAK_SLAB &&
+                it != Material.FARMLAND &&
                 it != Material.TEST_INSTANCE_BLOCK &&
-                it != Material.FARMLAND
+                it != Material.TEST_BLOCK
     }
 
     var scheduler: Int? = null
@@ -93,6 +97,8 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
     var sideBar: Sidebar? = null
     var sideBarLayout: ComponentSidebarLayout? = null
     var teamSideBarComponents: MutableMap<BingoTeams, TeamScoreboardComponent> = mutableMapOf()
+
+    var resourcePack: Pair<String, String>? = null
 
     var filledTeams: Map<BingoTeams, MutableList<UUID>> = mapOf()
 
@@ -110,15 +116,47 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
 
         val newBoard = mutableListOf<Material>()
 
-        (0 until (gameManager.bingoConfiguration.boardSize * gameManager.bingoConfiguration.boardSize)).forEach { _ ->
-            var item = bingoMaterials.random()
+        val difficulty = gameManager.bingoConfiguration.boardDifficulty
+
+        val boardSize = gameManager.bingoConfiguration.boardSize * gameManager.bingoConfiguration.boardSize
+        difficulty.itemDifficulties.forEach { (percentage, itemDifficulty) ->
+            val items = floor((percentage.toFloat() / 100.0) * boardSize).toInt()
+            (0 until items).forEach { _ ->
+                var item =
+                    Material.entries.filter { !it.isLegacy && it.isItem && itemDifficulty.itemTag.contains(it.key()) }
+                        .random()
+
+                while (newBoard.contains(item)) {
+                    item = Material.entries.filter {
+                        !it.isLegacy && it.isItem && itemDifficulty.itemTag.contains(it.key())
+                    }.random()
+                }
+                newBoard.add(item)
+            }
+        }
+        while (newBoard.size < boardSize) {
+            val itemDifficulty = difficulty.itemDifficulties.maxBy { it.first }.second
+            var item =
+                Material.entries.filter { !it.isLegacy && it.isItem && itemDifficulty.itemTag.contains(it.key()) }
+                    .random()
+
             while (newBoard.contains(item)) {
-                item = bingoMaterials.random()
+                item = Material.entries.filter {
+                    !it.isLegacy && it.isItem && itemDifficulty.itemTag.contains(it.key())
+                }.random()
             }
             newBoard.add(item)
         }
 
+        newBoard.shuffle()
+
         gameManager.bingoBoard = newBoard.toList()
+
+        gameManager.plugin.server.onlinePlayers.forEach { player ->
+            player.inventory.clear()
+
+            player.setBossbar()
+        }
 
         setResourcePack()
 
@@ -128,8 +166,6 @@ class GamePreperationState(manager: BingoGameManager) : GameState(manager) {
 
         generateWorlds { worlds ->
             gameManager.teamWorlds = worlds
-
-            println("worlds: $worlds")
 
             gameManager.plugin.server.scheduler.runTaskTimer(gameManager.plugin, { task ->
                 if (finishedPlayerInits == filledTeams.map { it.value.size }.sum()) {

@@ -1,5 +1,6 @@
 package dev.boecker.cherrycave.bingo.game.configuration
 
+import dev.boecker.cherrycave.bingo.game.item.BoardDifficulty
 import org.bukkit.Difficulty
 
 data class BingoConfiguration(
@@ -9,4 +10,5 @@ data class BingoConfiguration(
     val allowTeleportCommands: Boolean = true,
     val backPackSize: Int = 3,
     val hunger: Boolean = false,
+    val boardDifficulty: BoardDifficulty = BoardDifficulty.NORMAL,
 )

@@ -1,0 +1,20 @@
+{
+  "replace": false,
+  "values": [
+    "#minecraft:jungle_logs",
+    "minecraft:jungle_planks",
+    "minecraft:jungle_stairs",
+    "minecraft:jungle_slab",
+    "minecraft:jungle_fence",
+    "minecraft:jungle_fence_gate",
+    "minecraft:jungle_door",
+    "minecraft:jungle_trapdoor",
+    "minecraft:jungle_pressure_plate",
+    "minecraft:jungle_button",
+    "minecraft:jungle_shelf",
+    "minecraft:jungle_sapling",
+    "minecraft:jungle_sign",
+    "minecraft:jungle_boat",
+    "minecraft:jungle_chest_boat"
+  ]
+}

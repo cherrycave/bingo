@@ -16,6 +16,7 @@ import net.kyori.adventure.bossbar.BossBar
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.TextColor
 import org.bukkit.Material
+import org.bukkit.entity.Player
 
 val resourcePackGenUrl = System.getenv("RP_GEN_URL") ?: "http://localhost:3000"
 
@@ -61,20 +62,15 @@ fun GamePreperationState.setResourcePack() {
             getResourcePackForMaterials(gameManager.bingoBoard!!, gameManager.bingoConfiguration.boardSize)
 
         val (hash, downloadPath) = resourcePackResponse
+        this@setResourcePack.resourcePack = downloadPath to hash
 
         gameManager.plugin.server.onlinePlayers.forEach { player ->
-            player.setResourcePack("${resourcePackGenUrl}${downloadPath}", hash, true)
-
-            player.activeBossBars().forEach { bossBar ->
-                player.hideBossBar(bossBar)
-            }
-
-            player.showBossBar(
-                BossBar.bossBar(
-                    Component.text("\uE000", TextColor.fromHexString("#FE01FE")), 0f, BossBar.Color.RED,
-                    BossBar.Overlay.PROGRESS
-                )
-            )
+            player.setBingoResourcePack(downloadPath, hash)
         }
     }
 }
+
+fun Player.setBingoResourcePack(downloadPath: String, hash: String) {
+    this.setResourcePack("${resourcePackGenUrl}${downloadPath}", hash, true)
+}
+

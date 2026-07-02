@@ -1,6 +1,7 @@
 package dev.boecker.cherrycave.bingo.game.state.ingame
 
 import dev.boecker.cherrycave.bingo.game.BingoGameManager
+import dev.boecker.cherrycave.bingo.game.item.getItemDifficulty
 import dev.boecker.cherrycave.bingo.game.team.getBingoTeam
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.JoinConfiguration
@@ -25,6 +26,8 @@ fun bingoBoardInventory(size: Int, board: List<Material>, gameManager: BingoGame
                 Item.builder().setItemProvider { player ->
                     val team = player.getBingoTeam(gameManager)
                     val itemBuilder = ItemBuilder(material)
+                    val difficulty = material.getItemDifficulty()!!
+                    itemBuilder.setName(Component.translatable(material.translationKey(), difficulty.difficultyColor))
                     itemBuilder.setLore(gameManager.teams.filter {
                         gameManager.ingameState.collectedItems[it.key]?.contains(
                             material

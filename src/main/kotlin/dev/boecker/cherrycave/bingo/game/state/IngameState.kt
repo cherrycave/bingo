@@ -5,6 +5,9 @@ import dev.boecker.cherrycave.bingo.game.state.ingame.backPackInventory
 import dev.boecker.cherrycave.bingo.game.state.ingame.bingoBoardInventory
 import dev.boecker.cherrycave.bingo.game.state.ingame.checkIfBingoItem
 import dev.boecker.cherrycave.bingo.game.state.ingame.formatBingoTime
+import dev.boecker.cherrycave.bingo.game.state.prepare.initializeTeams
+import dev.boecker.cherrycave.bingo.game.state.prepare.setBingoResourcePack
+import dev.boecker.cherrycave.bingo.game.state.prepare.setBossbar
 import dev.boecker.cherrycave.bingo.game.team.BingoTeams
 import dev.boecker.cherrycave.bingo.game.team.getBingoTeam
 import io.papermc.paper.datacomponent.DataComponentTypes
@@ -97,6 +100,8 @@ class IngameState(manager: BingoGameManager) : GameState(manager) {
     }
 
     override fun endState() {
+        gameManager.plugin.server.scheduler.cancelTask(timerScheduler)
+
         super.endState()
     }
 
@@ -152,7 +157,15 @@ class IngameState(manager: BingoGameManager) : GameState(manager) {
     @EventHandler
     fun onPlayerJoin(event: PlayerJoinEvent) {
         if (!isActive) return
-        if (gameManager.teams.values.any { it.contains(event.player.uniqueId) }) return
+        if (gameManager.teams.values.any { it.contains(event.player.uniqueId) }) {
+            gameManager.gamePreperationState.initializeTeams(event.player)
+            event.player.setBossbar()
+            gameManager.gamePreperationState.sideBar?.removePlayer(event.player)
+            gameManager.gamePreperationState.sideBar?.addPlayer(event.player)
+            val (downloadPath, hash) = gameManager.gamePreperationState.resourcePack!!
+            event.player.setBingoResourcePack(downloadPath, hash)
+            return
+        }
 
         event.joinMessage(null)
         event.player.kick(Component.text("A game is running", NamedTextColor.RED))
