@@ -19,10 +19,10 @@ public class BingoPluginLoader implements PluginLoader {
         resolver.addDependency(new Dependency(new DefaultArtifact("io.ktor:ktor-client-content-negotiation-jvm:" + ktorVersion), null));
         resolver.addDependency(new Dependency(new DefaultArtifact("io.ktor:ktor-serialization-kotlinx-json-jvm:" + ktorVersion), null));
         resolver.addDependency(new Dependency(new DefaultArtifact("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0"), null));
-        resolver.addDependency(new Dependency(new DefaultArtifact("xyz.xenondevs.invui:invui:2.1.1"), null));
-        resolver.addDependency(new Dependency(new DefaultArtifact("xyz.xenondevs.invui:invui-kotlin:2.1.1"), null));
-        resolver.addDependency(new Dependency(new DefaultArtifact("net.megavex:scoreboard-library-api:2.8.0"), null));
-        resolver.addDependency(new Dependency(new DefaultArtifact("net.megavex:scoreboard-library-implementation:2.8.0"), null));
+        resolver.addDependency(new Dependency(new DefaultArtifact("xyz.xenondevs.invui:invui:2.2.0"), null));
+        resolver.addDependency(new Dependency(new DefaultArtifact("xyz.xenondevs.invui:invui-kotlin:2.2.0"), null));
+        resolver.addDependency(new Dependency(new DefaultArtifact("net.megavex:scoreboard-library-api:2.8.1"), null));
+        resolver.addDependency(new Dependency(new DefaultArtifact("net.megavex:scoreboard-library-implementation:2.8.1"), null));
 
         resolver.addRepository(new RemoteRepository.Builder("invui", "default", "https://repo.xenondevs.xyz/releases").build());
         resolver.addRepository(new RemoteRepository.Builder("central", "default", MavenLibraryResolver.MAVEN_CENTRAL_DEFAULT_MIRROR).build());
